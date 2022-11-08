@@ -40,13 +40,13 @@
         credentials: 'omit'
       })
 
+      const res = await message_sent.json()
+
       if (!message_sent.ok) {
         /* display error */
-        const res = await message_sent.json()
         console.error('Message:', res.error)
       } else {
         /* display success */
-        const res = await message_sent.json()
         console.log('Message:', res.data.status)
       }
     }

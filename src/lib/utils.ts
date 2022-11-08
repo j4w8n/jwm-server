@@ -5,29 +5,32 @@ import type { RequestEvent } from '@sveltejs/kit'
 import { InvalidJson, BodyNull } from '$lib/responses'
 
 /* incoming, from a client */
-export const validate_client_message = async (event: RequestEvent): Promise<{valid: boolean | void, response?: object, errors?: any}> => {
-  const valid_json = await validate_json(event)
+export const validate_client_message = async (event: RequestEvent): Promise<{valid: boolean | null, error: any}> => {
+  const json = await validate_json(event)
 
-  if (valid_json.response) return valid_json
+  if (json.valid === null) return json
 
   const format = {
     payload: 'required|string',
     signatures: 'required|array'
   }
 
-  const valid_message = new Validator(valid_json, format)
+  const message = new Validator(json, format)
+
+  /* negates possible 'void' return type from passes() */
+  const passes = message.passes() ? true : false
 
   return {
-    valid: valid_message.passes(),
-    errors: valid_message.errors
+    valid: passes,
+    error: message.errors.errors
   }
 }
 
 /* incoming, from another server */
-export const validate_server_message = async (event: RequestEvent): Promise<{valid: boolean | void, response?: object, errors?: any}> => {
-  const valid_json = await validate_json(event)
+export const validate_server_message = async (event: RequestEvent): Promise<{valid: boolean | null, error: any}> => {
+  const json = await validate_json(event)
 
-  if (valid_json.response) return valid_json
+  if (json.valid === null) return json
 
   const format = {
     created_at: 'required|date',
@@ -42,23 +45,26 @@ export const validate_server_message = async (event: RequestEvent): Promise<{val
     'email.from': 'Expecting user@domain.tld format.',
     'email.to': 'Expecting user@domain.tld format.'
   }
-  const valid_message = new Validator(valid_json, format, errors)
+  const message = new Validator(json, format, errors)
+
+  /* negates possible 'void' return type from passes() */
+  const passes = message.passes() ? true : false
 
   return {
-    valid: valid_message.passes(),
-    errors: valid_message.errors
+    valid: passes,
+    error: message.errors.errors
   }
 }
 
 export const validate_json = async ({ request, getClientAddress }: RequestEvent): Promise<any> => {
   return request.body ? await request.json().catch((err: any) => {
-    if (err.name === 'SyntaxError') return { valid: false, response: json(InvalidJson, { status: 400 }) }
+    if (err.name === 'SyntaxError') return { valid: null, error: InvalidJson }
     else 
       console.error(
-        { error: err.message, data: { url: request.url, client_ip: getClientAddress() } }
+        { data: { url: request.url, client_ip: getClientAddress() }, error: err.message }
       )
-      return { valid: false, response: json(err.message, { status: 400 }) }
-  }) : { valid: false, response: json(BodyNull, { status: 400 }) }
+      return { valid: null, error: err.message }
+  }) : { valid: null, error: BodyNull }
 }
 
 /* outgoing, to another server */

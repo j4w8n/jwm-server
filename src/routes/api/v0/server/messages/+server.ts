@@ -6,13 +6,15 @@ export const POST = async (event: RequestEvent) => {
   let status
   const message = await validate_server_message(event)
   message.valid ? status = 'accepted' : status = 'rejected'
-  if (message.response) return message.response
+
+  /* couldn't parse body as json */
+  if (!message.valid === null) return message.error
   
-  const error = Object.entries(message.errors.errors).length > 0 ? message.errors.errors : null
+  const error = Object.entries(message.error.errors).length > 0 ? message.error.errors : null
   
   if(!error) {
     /* lookup user by auth token, to ensure they are one of our users and pass username to server_message function */
   }
 
-  return json({ error, data: { status } })
+  return json({ data: { status }, error })
 }

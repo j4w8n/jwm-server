@@ -5,17 +5,19 @@ import type { RequestEvent } from './$types'
 export const GET = (event: RequestEvent) => {
 
   return json({
-    error: null, data: { messages: ['Here are your messages'] }
+    data: { messages: ['Here are your messages'] }, error: null
   })
 }
 
 export const POST = async (event: RequestEvent) => { 
   let status
   const message = await validate_client_message(event)
-  message.valid ? status = 'accepted' : status = 'rejected'
-  if (message.response) return message.response
-  
-  const error = Object.entries(message.errors.errors).length > 0 ? message.errors.errors : null
+  !message.valid ? status = 'rejected' : status = 'accepted'
+
+  /* couldn't parse body as json */
+  if (message.valid = null) return json({ data: { status }, error: message.error }, { status: 400 })
+
+  const error = message.error?.errors ?? null
   
   if(!error) {
     console.log('verifying auth token')
@@ -30,5 +32,5 @@ export const POST = async (event: RequestEvent) => {
   }
 
   console.log('returning response')
-  return json({ error, data: { status } })
+  return json({ data: { status }, error })
 }
