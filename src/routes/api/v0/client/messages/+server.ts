@@ -12,12 +12,13 @@ export const GET = (event: RequestEvent) => {
 export const POST = async (event: RequestEvent) => { 
   let status
   const message = await validate_client_message(event)
+  console.log(message)
   !message.valid ? status = 'rejected' : status = 'accepted'
 
   /* couldn't parse body as json */
-  if (message.valid = null) return json({ data: { status }, error: message.error }, { status: 400 })
+  if (message.valid === null) return json({ data: { status }, error: message.error }, { status: 400 })
 
-  const error = message.error?.errors ?? null
+  const error = message.error
   
   if(!error) {
     console.log('verifying auth token')

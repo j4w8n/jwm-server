@@ -1,2 +1,2 @@
-export const InvalidJson = { data: { status: 'rejected', error: 'Message: Invalid json.' } }
-export const BodyNull = { data: { status: 'rejected' }, error: 'Message: Body is null.' }
+export const InvalidJson = 'Invalid json.'
+export const BodyNull = 'Body is null.'
