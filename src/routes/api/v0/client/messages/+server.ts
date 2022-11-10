@@ -12,7 +12,7 @@ export const GET = (event: RequestEvent) => {
 export const POST = async (event: RequestEvent) => { 
   let status
   const message = await validate_client_message(event)
-  console.log(message)
+
   !message.valid ? status = 'rejected' : status = 'accepted'
 
   /* couldn't parse body as json */
@@ -26,9 +26,7 @@ export const POST = async (event: RequestEvent) => {
     
     console.log('sending messages')
     /* lookup the user's subscribers and create/send a message for each */
-    /** 
-     * synchronous function? need to find a way to queue the sending of the messages, so we can call the below `return` asap
-     */
+    /* or send relevant info somewhere, to be queued so we can call the below `return` asap */
 
   }
 
