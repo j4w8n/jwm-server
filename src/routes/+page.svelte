@@ -1,27 +1,18 @@
 <script lang="ts">
   import * as jose from 'jose'
-  import { InvalidJson, BodyNull } from '$lib/responses'
+  import type { Message } from '$lib/types'
 
-  let message: string = '', raw_payload: HTMLTextAreaElement, title: string = 'message', token: string = ''
+  let message: string = '', payload: HTMLTextAreaElement, title: HTMLInputElement, token: string = ''
   const sign_message = async () => {
     const { publicKey, privateKey } = await jose.generateKeyPair('ES256')
-    let json = null
-    try {
-      json = JSON.parse(raw_payload.value)
-    } catch (err: any) {
-      if (err.name === 'SyntaxError') {
-        console.error({error: err.message})
-        /* display error in ui */
-        return false
-      } else 
-        console.error(
-          { error: err.message }
-        )
-        /* display error in ui */
-        return false
+    let json: Message = {
+      "body": {
+        "title": title.value,
+        "message": payload.value,
+        "created_at": Date.now()
+      }
     }
-    
-    json.created_at = Date.now()
+
     const jws = await new jose.GeneralSign(new TextEncoder().encode(JSON.stringify(json)))
       .addSignature(privateKey)
       .setProtectedHeader({ typ: 'JWM', alg: 'ES256' })
@@ -86,7 +77,7 @@
 
   const encrypt_message = async () => {
     const { publicKey, privateKey } = await jose.generateKeyPair('ECDH-ES+A256KW')
-    const json = JSON.parse(raw_payload.value)
+    const json = JSON.parse(payload.value)
     json.created_at = Date.now()
     const jwe = await new jose.GeneralEncrypt(new TextEncoder().encode(JSON.stringify(json)))
       .setProtectedHeader({ typ: 'JWM', enc: 'A256GCM' })
@@ -108,7 +99,9 @@
 </script>
 
 <h1>Create Message</h1>
-<textarea cols='50' rows='25' bind:this="{raw_payload}" type="text"></textarea>
+<input type="text" bind:this="{title}"/>
+<br>
+<textarea cols='50' rows='25' bind:this="{payload}" type="text"></textarea>
 <button on:click="{() => { sign_message() }}">Sign</button>
 <button on:click="{() => { encrypt_message() }}">Encrypt</button>
-<iframe style="border: solid 1px darkgrey;" title={title} sandbox="allow-popups allow-popups-to-escape-sandbox" srcdoc={message}></iframe>
+<iframe style="border: solid 1px darkgrey;" title="sandbox" sandbox="allow-popups allow-popups-to-escape-sandbox" srcdoc={message}></iframe>
