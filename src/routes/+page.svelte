@@ -1,8 +1,27 @@
 <script lang="ts">
   import * as jose from 'jose'
   import type { Message } from '$lib/types'
+  import { supabaseClient } from '$lib/db'
 
   let message: string = '', payload: HTMLTextAreaElement, title: HTMLInputElement, token: string = ''
+  
+  const signIn = async (email: string) => {
+    const response = await supabaseClient.auth.signInWithPassword({
+      email,
+      password: 'password'
+    })
+    console.log(response)
+    document.cookie = `access_token=${response.data.session?.access_token}; SameSite=Strict; Path=/; Max-Age=3600`
+    document.cookie = `refresh_token=${response.data.session?.access_token}; SameSite=Strict; Path=/; Max-Age=3600`
+  }
+
+  const messages = async () => {
+    await fetch('http://localhost:5173/api/v0/client/messages', {
+      method: 'GET',
+      credentials: 'include'
+    })
+  }
+  
   const sign_message = async () => {
     const { publicKey, privateKey } = await jose.generateKeyPair('ES256')
     let json: Message = {
@@ -12,37 +31,41 @@
         "created_at": Date.now()
       }
     }
+    const plainKey = await jose.exportSPKI(publicKey)
+
+    /* use this on remote end, to recreate publicKey, in order to verify signature */
+    //const publicKey = await jose.importSPKI(plainKey, 'ES256', { extractable: true })
 
     const jws = await new jose.GeneralSign(new TextEncoder().encode(JSON.stringify(json)))
       .addSignature(privateKey)
       .setProtectedHeader({ typ: 'JWM', alg: 'ES256' })
       .sign()
 
-    console.log(jws)
+    const data = {
+      message: jws,
+      public_key: plainKey
+    }
 
     /* send jws to your server */
     if (jws) {
       const message_sent = await fetch('http://localhost:5173/api/v0/client/messages', {
         method: 'POST',
-        headers: {
-          Authorization: `bearer ${token}`
-        },
-        body: JSON.stringify(jws),
-        credentials: 'omit'
+        body: JSON.stringify(data),
+        credentials: 'include'
       })
 
       const res = await message_sent.json()
 
       if (!message_sent.ok) {
         /* display error */
-        console.error('Message:', res.error)
+        console.error('Message:', res)
       } else {
         /* display success */
         console.log('Message:', res.data.status)
       }
     }
 
-    /* temp, decrypt message */
+    /* temp, verify signature & decrypt message */
     // const { payload, protectedHeader } = await jose.generalVerify(jws, publicKey)
     // const decrypted = new TextDecoder().decode(payload)
 
@@ -98,6 +121,9 @@
   }
 </script>
 
+<button on:click="{() => { signIn('jcreviston@protonmail.com') }}">Sign-In jcreviston</button>
+<button on:click="{() => { signIn('jcrev@pm.me') }}">Sign-In jcrev</button>
+<button on:click="{() => { messages() }}">Get Messages</button>
 <h1>Create Message</h1>
 <input type="text" bind:this="{title}"/>
 <br>

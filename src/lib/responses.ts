@@ -1,2 +1,2 @@
-export const InvalidJson = 'Invalid json.'
+export const InvalidJson = 'Invalid JSON.'
 export const BodyNull = 'Body is null.'

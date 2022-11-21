@@ -7,22 +7,31 @@ import { InvalidJson, BodyNull } from '$lib/responses'
 /* incoming, from a client */
 export const validate_client_message = async (event: RequestEvent): Promise<{valid: boolean | null, error: any}> => {
   const json = await validate_json(event)
-
+  console.log(json)
   if (json.valid === null) return json
 
+  // const format = {
+  //   payload: 'required|string',
+  //   signatures: 'required|array'
+  // }
   const format = {
-    payload: 'required|string',
-    signatures: 'required|array'
+    message: {
+      payload: 'required|string',
+      signatures: 'required|array'
+    },
+    public_key: 'required|string'
   }
 
   const message = new Validator(json, format)
 
   /* negates possible 'void' return type from passes() */
   const passes = message.passes() ? true : false
-
+  const error = Object.entries(message.errors.errors).length === 0 ? null : message.errors.errors
+  
   return {
     valid: passes,
-    error: message.errors.errors
+    error,
+    payload: json
   }
 }
 
