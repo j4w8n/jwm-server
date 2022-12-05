@@ -2,17 +2,26 @@
   import * as jose from 'jose'
   import type { Message } from '$lib/types'
   import { supabaseClient } from '$lib/db'
+  import { log } from '$lib/utils'
 
   let message: string = '', payload: HTMLTextAreaElement, title: HTMLInputElement, token: string = ''
   
   const signIn = async (email: string) => {
-    const response = await supabaseClient.auth.signInWithPassword({
+    const { data, error} = await supabaseClient.auth.signInWithPassword({
       email,
       password: 'password'
     })
-    console.log(response)
-    document.cookie = `access_token=${response.data.session?.access_token}; SameSite=Strict; Path=/; Max-Age=3600`
-    document.cookie = `refresh_token=${response.data.session?.access_token}; SameSite=Strict; Path=/; Max-Age=3600`
+    if (error) throw error
+    document.cookie = `access_token=${data.session?.access_token}; SameSite=Lax; Path=/; Max-Age=3600`
+    document.cookie = `refresh_token=${data.session?.access_token}; SameSite=Lax; Path=/; Max-Age=3600`
+    log('signed in!')
+  }
+  const signOut = async () => {
+    const { error } = await supabaseClient.auth.signOut()
+    if (error) throw error
+    document.cookie = `access_token=''; SameSite=Lax; Path=/; Max-Age=-1`
+    document.cookie = `refresh_token=''; SameSite=Lax; Path=/; Max-Age=-1`
+    log('signed out!')
   }
 
   const messages = async () => {
@@ -41,7 +50,7 @@
       .setProtectedHeader({ typ: 'JWM', alg: 'ES256' })
       .sign()
 
-    const data = {
+    const message_data = {
       message: jws,
       public_key: plainKey
     }
@@ -50,18 +59,18 @@
     if (jws) {
       const message_sent = await fetch('http://localhost:5173/api/v0/client/messages', {
         method: 'POST',
-        body: JSON.stringify(data),
+        body: JSON.stringify(message_data),
         credentials: 'include'
       })
 
-      const res = await message_sent.json()
-
-      if (!message_sent.ok) {
-        /* display error */
-        console.error('Message:', res)
+      const { data, error } = await message_sent.json()
+      log({'server response': { data, error }})
+      if (error) {
+        /* eventually display error in ui */
+        //log({'Message': error})
       } else {
-        /* display success */
-        console.log('Message:', res.data.status)
+        /* eventuall display success ui */
+        //log({'Message': data.status})
       }
     }
 
@@ -70,7 +79,7 @@
     // const decrypted = new TextDecoder().decode(payload)
 
     // const body = JSON.parse(decrypted).body
-    // console.log('decrypted', JSON.parse(decrypted), protectedHeader)
+    // log({'decrypted': JSON.parse(decrypted), protectedHeader})
     // message = body.message
     // title = body.title
 
@@ -90,12 +99,12 @@
       .setProtectedHeader({ typ: 'JWM', alg: 'ES256' })
       .sign()
 
-    console.log({jws})
+    log({jws})
 
     const { payload, protectedHeader } = await jose.generalVerify(jws, publicKey)
     const decrypted = new TextDecoder().decode(payload)
 
-    console.log('server decrypted', JSON.parse(decrypted), protectedHeader)
+    log({'server decrypted': JSON.parse(decrypted), protectedHeader})
   }
 
   const encrypt_message = async () => {
@@ -108,14 +117,14 @@
       .addRecipient(publicKey)
       .encrypt()
 
-    console.log({jwe})
+    log({jwe})
 
     /* someone is sending you an encrypted message, using your publicKey. so you decrypt with your privateKey */
     const { plaintext, protectedHeader, additionalAuthenticatedData } = await jose.generalDecrypt(jwe, privateKey)
     const decrypted = new TextDecoder().decode(plaintext)
 
     const body = JSON.parse(decrypted).body
-    console.log('decrypted', JSON.parse(decrypted), protectedHeader)
+    log({'decrypted': JSON.parse(decrypted), protectedHeader})
     message = body.message
     title = body.title
   }
@@ -123,6 +132,7 @@
 
 <button on:click="{() => { signIn('jcreviston@protonmail.com') }}">Sign-In jcreviston</button>
 <button on:click="{() => { signIn('jcrev@pm.me') }}">Sign-In jcrev</button>
+<button on:click="{() => { signOut() }}">Sign-Out</button>
 <button on:click="{() => { messages() }}">Get Messages</button>
 <h1>Create Message</h1>
 <input type="text" bind:this="{title}"/>

@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit'
-import { validate_client_message } from '$lib/utils'
+import { validate_client_message, log } from '$lib/utils'
 import type { RequestEvent } from './$types'
 import { createClient } from '@supabase/supabase-js'
 import { SUPABASE_ADMIN_KEY } from '$env/static/private'
@@ -17,7 +17,7 @@ export const GET = async (event: RequestEvent) => {
   if (data.user) {
     await supabaseClient.auth.setSession({ access_token, refresh_token })
     const { data, error } = await supabaseClient.from('messages').select()
-    console.log('messages', data, error)
+    log({'messages': data, error})
   }
   return json({
     data: { messages: ['Here are your messages'] }, error: null
@@ -38,14 +38,16 @@ export const POST = async (event: RequestEvent) => {
     const access_token = event.cookies.get('access_token')
     const { data: user, error } = await supabaseClient.auth.getUser(access_token)
 
-    const data = {
-      // eventually grab user.user_metadata.username for 'from'
+    if (error) return json({ data: null, error })
+
+    const message_data = {
+      /* eventually grab user.user_metadata.username for 'from'? */
       from: user.user.email,
       user_id: user.user.id,
       message: payload.message,
       public_key: payload.public_key
     }
-    console.log('sending messages')
+    log('sending messages')
     /* send relevant info somewhere, to be queued so we can call the below `return` asap */
     const res = await fetch(`${PUBLIC_SUPABASE_FN_URL}/handler`, {
       method: 'POST',
@@ -53,16 +55,17 @@ export const POST = async (event: RequestEvent) => {
         'Authorization': `Bearer ${access_token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(data)
+      body: JSON.stringify(message_data)
     })
 
     if (res.status !== 200) {
-      console.error(`${PUBLIC_SUPABASE_FN_URL}/handler response: ${res.status} ${res.statusText}`)
+      log(`${PUBLIC_SUPABASE_FN_URL}/handler response`: { 'status': res.status, 'message': res.statusText })
     } else {
-      console.log('function res', await res.json())
+      log('fn res': await res.json())
     }
   }
 
-  console.log('returning response')
+  log('check browser console for response')
+  /* should we send more information back about what we accepted? */
   return json({ data: { status }, error })
 }

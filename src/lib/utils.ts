@@ -4,10 +4,14 @@ import { json } from '@sveltejs/kit'
 import type { RequestEvent } from '@sveltejs/kit'
 import { InvalidJson, BodyNull } from '$lib/responses'
 
+export const log = (data) => {
+  console.log(JSON.stringify(data, null, 2))
+}
+
 /* incoming, from a client */
 export const validate_client_message = async (event: RequestEvent): Promise<{valid: boolean | null, error: any}> => {
   const json = await validate_json(event)
-  console.log(json)
+
   if (json.valid === null) return json
 
   // const format = {
