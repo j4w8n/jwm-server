@@ -26,9 +26,8 @@ export const GET = async (event: RequestEvent) => {
   })
 }
 
-export const POST = async (event: RequestEvent) => { 
+export const POST = async (event: RequestEvent): Promise<any> => { 
   let status
-  const access_token = event.cookies.get('access_token')
   const { valid, error, payload } = await validate_client_message(event)
 
   !valid ? status = 'rejected' : status = 'accepted'
@@ -37,34 +36,65 @@ export const POST = async (event: RequestEvent) => {
   if (valid === null) return json({ data: { status }, error }, { status: 400 })
 
   if(!error) {
-    const access_token = event.cookies.get('access_token')
-    const { data: user, error } = await supabaseClient.auth.getUser(access_token)
+    const access_token = event.cookies.get('access_token') || ''
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser(access_token)
 
-    if (error) return json({ data: null, error })
+    if (userError) return json({ data: null, error: userError })
 
-    const message_data = {
-      /* eventually grab user.user_metadata.username for 'from'? */
-      from: user.user.email,
-      user_id: user.user.id,
-      message: payload.message,
-      public_key: payload.public_key
-    }
-    log('sending messages')
-    /* send relevant info somewhere, to be queued so we can call the below `return` asap */
-    const res = await fetch(`${PUBLIC_SUPABASE_FN_URL}/handler`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${access_token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(message_data)
-    })
+    /* add message to `messages` and set status to `accepted` with retries set to `0` */
+    const { data: messageData, error: messageError } = await supabaseAdminClient
+      .from('messages')
+      .insert([
+        { message: payload.message, user_id: userData.user.id }
+      ])
+      .select()
+    console.log(messageData)
 
-    if (res.status !== 200) {
-      log({'handler': { 'status': res.status, 'message': res.statusText }})
-    } else {
-      log({'handler': await res.json()})
-    }
+    if (messageError) return json({ data: null, error: messageError })
+
+    /* send to db queue table, for processing */
+    /* eventually grab user.user_metadata.username for 'from'? */
+    const { error: queueError } = await supabaseAdminClient
+      .from('messages_queue')
+      .insert([
+        { 
+          message_id: messageData[0].id, 
+          message: payload.message, 
+          public_key: payload.public_key, 
+          user_id: userData.user.id, 
+          from: userData.user.email 
+        }
+      ])
+
+    if (queueError) log(queueError)
+
+    // const message_data = {
+    //   /* eventually grab user.user_metadata.username for 'from'? */
+    //   from: userData.user.email,
+    //   user_id: userData.user.id,
+    //   message: payload.message,
+    //   public_key: payload.public_key
+    // }
+    // log('sending messages')
+
+    // const res = await fetch(`${PUBLIC_SUPABASE_FN_URL}/handler`, {
+    //   method: 'POST',
+    //   headers: {
+    //     'Authorization': `Bearer ${access_token}`,
+    //     'Content-Type': 'application/json'
+    //   },
+    //   body: JSON.stringify(message_data)
+    // })
+
+    //if (res.status !== 200) {
+      /**
+       * call to edge function failed. save message in db, for later processing??
+       * or save message to db, never call the function in this file, but have a db insert trigger the function?
+       */
+    //  log({'handler': { 'status': res.status, 'message': res.statusText }})
+    //} else {
+    //  log({'handler': await res.json()})
+    //}
   }
 
   log('check browser console for response')
