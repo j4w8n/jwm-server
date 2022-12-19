@@ -10,9 +10,11 @@ const supabaseAdminClient = createClient(PUBLIC_SUPABASE_URL, SUPABASE_ADMIN_KEY
 
 export const GET = async (event: RequestEvent) => {
   let messages = null
-  const access_token = event.cookies.get('access_token')
-  const refresh_token = event.cookies.get('refresh_token')
+  const access_token = event.cookies.get('access_token') || ''
+  const refresh_token = event.cookies.get('refresh_token') || ''
   const { data, error } = await supabaseClient.auth.getUser(access_token)
+
+  if (error) throw error
 
   if (data.user) {
     await supabaseClient.auth.setSession({ access_token, refresh_token })
@@ -59,9 +61,9 @@ export const POST = async (event: RequestEvent) => {
     })
 
     if (res.status !== 200) {
-      log(`${PUBLIC_SUPABASE_FN_URL}/handler response`: { 'status': res.status, 'message': res.statusText })
+      log({'handler': { 'status': res.status, 'message': res.statusText }})
     } else {
-      log('fn res': await res.json())
+      log({'handler': await res.json()})
     }
   }
 
