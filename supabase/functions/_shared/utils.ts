@@ -1,4 +1,4 @@
-export const validateJson = async (request: Request): Promise<Record<string, string>> => {
+export const validateJson = async (request: Request): Promise<any> => {
   const json = request.body ? await request.json().catch((err: Error) => {
     if (err.name === 'SyntaxError') return { error: 'Invalid JSON' }
     else
