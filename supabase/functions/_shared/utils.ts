@@ -1,4 +1,5 @@
-export const validateJson = async (request: Request): Promise<any> => {
+import type { Message } from './types.ts'
+export const validateJson = async (request: Request): Promise<Message> => {
   const json = request.body ? await request.json().catch((err: Error) => {
     if (err.name === 'SyntaxError') return { error: 'Invalid JSON' }
     else
