@@ -1,7 +1,6 @@
 import { serve } from 'https://deno.land/std@0.131.0/http/server.ts'
 import { supabaseAdminClient } from '../_shared/supabaseAdminClient.ts'
 import { validateJson, response } from '../_shared/utils.ts'
-import type { Message } from '../_shared/types.ts'
 import { MessageSchema } from '../_shared/types.ts'
 
 serve(async (req: Request): Promise<Response> => {
@@ -17,11 +16,11 @@ serve(async (req: Request): Promise<Response> => {
       400
     )
 
-  const message: Message = await validateJson(req)
-  if (message.error) 
+  const message = await validateJson(req)
+  if (message.bodyError) 
     return response(
       null,
-      message.error,
+      message.bodyError,
       400
     )
 
