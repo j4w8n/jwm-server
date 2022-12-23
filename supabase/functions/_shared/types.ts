@@ -1,6 +1,3 @@
-const message = ''
-
-
 import { z } from 'https://deno.land/x/zod@v3.20.2/mod.ts'
 
 export const MessageSchema = z.object({
@@ -18,9 +15,3 @@ export const MessageSchema = z.object({
 })
 
 export type Message = z.infer<typeof MessageSchema>
-
-const validMessage = MessageSchema.safeParse(message)
-
-
-
-validMessage
