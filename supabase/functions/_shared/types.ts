@@ -1,7 +1,7 @@
 import { z } from 'https://deno.land/x/zod@v3.20.2/mod.ts'
 
 export const MessageSchema = z.object({
-  type: z.literal("INSERT"),
+  type: z.string(),
   table: z.string(),
   record: z.object({
     id: z.number(),
