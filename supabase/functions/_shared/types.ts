@@ -8,10 +8,13 @@ export const MessageSchema = z.object({
     from: z.string(),
     message: z.string(),
     retries: z.number(),
+    created_at: z.string(),
+    message_id: z.number(),
     user_id: z.string(),
     public_key: z.string(),
   }),
-  error: z.string().or(z.null()),
+  schema: z.literal("public"),
+  old_record: z.null(),
   _valid: z.literal("SUCCESS"),
 })
 
