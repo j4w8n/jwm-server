@@ -4,8 +4,6 @@ import { validateJson } from '../_shared/utils.ts'
 import type { Message } from '../_shared/types.ts'
 import { MessageSchema } from '../_shared/types.ts'
 
-
-
 serve(async (req: Request): Promise<Response> => {
   if (req.method !== 'POST') {
     return new Response(
