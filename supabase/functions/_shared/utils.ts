@@ -1,17 +1,23 @@
 //import type { Message } from './types.ts'
 import type { ZodError } from 'https://deno.land/x/zod@v3.20.2/mod.ts'
+import { JsonResponse } from './types.ts'
 
-export const validateJson = async (request: Request) => {
-  const json = request.body ? await request.json().catch((err: Error): {bodyError: string } => {
-    if (err.name === 'SyntaxError') return { bodyError: 'Invalid JSON' }
+export const validateJson = async (request: Request): Promise<JsonResponse> => {
+  try {
+    const json = await request.json()
+    return {
+      ...json,
+      _valid: "SUCCESS"
+    }
+  } catch (err) {
+    if (err.name === 'SyntaxError') 
+      return { _valid: "ERROR", error: 'Invalid JSON' }
     else
       console.error(
-        { data: request, bodyError: err.message }
+        { data: request, error: err.message }
       )
-      return { bodyError: err.message }
-  }): { bodyError: 'Body is null'}
-
-  return json
+      return { _valid: "ERROR", error: err.message }
+  }
 }
 
 export const response = (

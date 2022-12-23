@@ -1,12 +1,12 @@
 import { serve } from 'https://deno.land/std@0.131.0/http/server.ts'
 import { supabaseAdminClient } from '../_shared/supabaseAdminClient.ts'
 import { validateJson, response } from '../_shared/utils.ts'
-import { MessageSchema } from '../_shared/types.ts'
+import { JsonResponse, MessageSchema } from '../_shared/types.ts'
 
 serve(async (req: Request): Promise<Response> => {
   /* This function requires the service-role key */
-  const auth: string = req.headers.get('Authorization')?.split(' ')[1] || ''
-  if (auth !== Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) 
+  const key: string = req.headers.get('Authorization')?.split(' ')[1] || ''
+  if (key !== Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) 
     return response('Not Authorized', null, 401)
 
   if (req.method !== 'POST') 
@@ -16,13 +16,20 @@ serve(async (req: Request): Promise<Response> => {
       400
     )
 
-  const message = await validateJson(req)
-  if (message.bodyError) 
+  const message: JsonResponse = await validateJson(req)
+  if (message.error) {
     return response(
       null,
-      message.bodyError,
+      message.error,
       400
     )
+  }
+  
+  let user_id
+  switch (message._valid) {
+    case "SUCCESS":
+      user_id = message.record.user_id
+  }
 
   const validMessage = MessageSchema.safeParse(message)
   if (!validMessage.success) 
@@ -32,7 +39,7 @@ serve(async (req: Request): Promise<Response> => {
   const { data, error: subscriberError } = await supabaseAdminClient
     .from('subscribers')
     .select('from')
-    .eq('to', message.record.user_id )
+    .eq('to', user_id )
 
   if (subscriberError) throw subscriberError
 
