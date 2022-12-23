@@ -1,41 +1,33 @@
 import { serve } from 'https://deno.land/std@0.131.0/http/server.ts'
 import { supabaseAdminClient } from '../_shared/supabaseAdminClient.ts'
-import { validateJson } from '../_shared/utils.ts'
+import { validateJson, response } from '../_shared/utils.ts'
 import type { Message } from '../_shared/types.ts'
 import { MessageSchema } from '../_shared/types.ts'
 
 serve(async (req: Request): Promise<Response> => {
-  if (req.method !== 'POST') {
-    return new Response(
-      JSON.stringify({ data: { message: 'API only supports POST requests.' }, error: null }),
-      { headers: { 'Content-Type': 'application/json' }, status: 400 }
-    )
-  }
-
   /* This function requires the service-role key */
   const auth: string = req.headers.get('Authorization')?.split(' ')[1] || ''
-  if (auth !== Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) {
-    console.log('Unauthorized', req)
-    return new Response(
-      JSON.stringify({ data: { message: 'Not Authorized' }, error: null }),
-      { headers: { 'Content-Type': 'application/json' }, status: 401 }
+  if (auth !== Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) 
+    return response('Not Authorized', null, 401)
+
+  if (req.method !== 'POST') 
+    return response(
+      'API only supports POST requests.', 
+      null, 
+      400
     )
-  }
 
   const message: Message = await validateJson(req)
-  console.log('fn received', message)
-
-  if (message.error) console.log('error receving message', message.error)
+  if (message.error) 
+    return response(
+      null,
+      message.error,
+      400
+    )
 
   const validMessage = MessageSchema.safeParse(message)
-
-  if (!validMessage.success) {
-    console.log(validMessage.error)
-    return new Response(
-      JSON.stringify({ data: null, error: validMessage.error }),
-      { headers: { 'Content-Type': 'application/json' } }
-    )
-  }
+  if (!validMessage.success) 
+    return response(null, validMessage.error, 400)
 
   /* lookup subscribers by record.user_id */
   const { data, error: subscriberError } = await supabaseAdminClient
@@ -43,13 +35,7 @@ serve(async (req: Request): Promise<Response> => {
     .select('from')
     .eq('to', message.record.user_id )
 
-  if (subscriberError) {
-    console.log({error: subscriberError})
-    return new Response(
-      JSON.stringify({ data: null, error: subscriberError }),
-      { headers: { 'Content-Type': 'application/json' } }
-    )
-  }
+  if (subscriberError) throw subscriberError
 
   /**
    * for each subscriber:
@@ -65,8 +51,5 @@ serve(async (req: Request): Promise<Response> => {
     })
   }
   
-  return new Response(
-    JSON.stringify({ data: { message: 'success!' }, error: null }),
-    { headers: { 'Content-Type': 'application/json' } }
-  )
+  return response('Success!', null, 200)
 })
