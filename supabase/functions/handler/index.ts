@@ -37,6 +37,8 @@ serve(async (req: Request): Promise<Response> => {
     return response(null, validMessage.error, 400)
   }
 
+  const { record } = message
+
   /* lookup subscribers by record.user_id */
   const { data, error: subscriberError } = await supabaseAdminClient
     .from('subscribers')
@@ -54,9 +56,51 @@ serve(async (req: Request): Promise<Response> => {
    */
   console.log({data})
   if (data.length > 0) {
-    data.forEach(sub => {
-      console.log('sending message to', sub)
-    })
+    for (const sub in data) {
+      const domain = data[sub].from.split('@')[1]
+      try {
+        const resolved = await Deno.resolveDns(`_jwm.${domain}`, "TXT")
+        console.log(resolved[0][0])
+        const server = resolved[0][0]
+          .split(' ')
+          .find(entry => entry.split('=')[0] === 'server')
+        console.log('server is:', server)
+
+        if (!server) {
+          return response(null, 'No server found in TXT record', 400)
+        }
+
+        const server_message = {
+          created_at: Date.now(),
+          to: data[sub].from,
+          from: record.from,
+          message: { 
+            payload: JSON.parse(record.message).payload,
+            signatures: JSON.parse(record.message).signatures,
+            created_at: record.created_at,
+            public_key: record.public_key
+          }
+        }
+        /*  try sending message to server */
+        const target = server.split('=')[1]
+        try {
+          const delivered = await fetch(
+            `https://${target}/api/v0/server/messages`,
+            {
+              method: 'POST',
+              body: JSON.stringify(server_message)
+            })
+          console.log('delivered', delivered)
+        } catch (error) {
+          console.log('error delivering message', error)
+        }
+      } catch (error) {
+        if (error.name === 'NotFound') {
+          console.log(error.message)
+        }
+      }
+      //console.log('sending message to', data[sub])
+    }
   }
   
   return response('Success!', null, 200)

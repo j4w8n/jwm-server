@@ -40,7 +40,7 @@ export const validate_client_message = async (event: RequestEvent): Promise<{val
 }
 
 /* incoming, from another server */
-export const validate_server_message = async (event: RequestEvent): Promise<{valid: boolean | null, error: any}> => {
+export const validate_server_message = async (event: RequestEvent): Promise<{message: JSON, valid: boolean | null, error: any}> => {
   const json = await validate_json(event)
 
   if (json.valid === null) return json
@@ -49,9 +49,11 @@ export const validate_server_message = async (event: RequestEvent): Promise<{val
     created_at: 'required|date',
     from: 'required|email',
     to: 'required|email',
-    body: {
-      payload: 'required|string',
-      signatures: 'required|array'
+    message: {
+        payload: 'required|string',
+        signatures: 'required|array',
+        created_at: 'required|string',
+        public_key: 'required|string'
     }
   }
   const errors = {
@@ -64,6 +66,7 @@ export const validate_server_message = async (event: RequestEvent): Promise<{val
   const passes = message.passes() ? true : false
 
   return {
+    message: json,
     valid: passes,
     error: message.errors.errors
   }

@@ -10,17 +10,22 @@ const supabaseAdminClient = createClient(PUBLIC_SUPABASE_URL, SUPABASE_ADMIN_KEY
 
 export const GET = async (event: RequestEvent) => {
   let messages = null
+
   const access_token = event.cookies.get('access_token') || ''
   const refresh_token = event.cookies.get('refresh_token') || ''
+  if (!access_token || !refresh_token)
+    return json({
+      data: null, error: 'No cookie found'
+    })
+
   const { data, error } = await supabaseClient.auth.getUser(access_token)
-
   if (error) throw error
-
   if (data.user) {
     await supabaseClient.auth.setSession({ access_token, refresh_token })
     const { data, error } = await supabaseClient.from('messages').select()
     log({'messages': data, error})
   }
+  
   return json({
     data: { messages: ['Here are your messages'] }, error: null
   })
