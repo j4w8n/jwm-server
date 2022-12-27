@@ -95,9 +95,7 @@ serve(async (req: Request): Promise<Response> => {
           console.log('error delivering message', error)
         }
       } catch (error) {
-        if (error.name === 'NotFound') {
-          console.log(error.message)
-        }
+          console.log(error)
       }
       //console.log('sending message to', data[sub])
     }
