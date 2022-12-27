@@ -11,14 +11,13 @@ export const POST = async (event: RequestEvent) => {
   if (!message.valid === null) return message.error
   
   const error = Object.entries(message.error).length > 0 ? message.error.errors : null
+  if (error) log(error)
   
-  /* verify this message is from a server ?? */
+  /* verify this message is from a legit server ?? */
   
 
-  if(!error) {
-    /* lookup user by auth token, to ensure they are one of our users and pass username to server_message function */
-    console.log('received message!', message)
-  }
+  /* lookup user by auth token, to ensure they are one of our users and pass username to server_message function */
+  console.log('received message!', message)
 
   return json({ data: { status }, error })
 }

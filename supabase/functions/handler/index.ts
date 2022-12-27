@@ -4,8 +4,6 @@ import { validateJson, response } from '../_shared/utils.ts'
 import { JsonResponse, MessageSchema } from '../_shared/types.ts'
 
 serve(async (req: Request): Promise<Response> => {
-  let user_id
-  
   /* This function requires the service-role key */
   const key: string = req.headers.get('Authorization')?.split(' ')[1] || ''
   if (key !== Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) 
@@ -21,7 +19,6 @@ serve(async (req: Request): Promise<Response> => {
   const message: JsonResponse = await validateJson(req)
   switch (message._valid) {
     case "SUCCESS":
-      user_id = message.record.user_id
       break
     case "ERROR":
       return response(
@@ -37,67 +34,70 @@ serve(async (req: Request): Promise<Response> => {
     return response(null, validMessage.error, 400)
   }
 
+  /* message is valid, grab newly inserted db data */
   const { record } = message
 
-  /* lookup subscribers by record.user_id */
-  const { data, error: subscriberError } = await supabaseAdminClient
+  /* lookup the sender's subscribers */
+  const { data: subscriberData, error: subscriberError } = await supabaseAdminClient
     .from('subscribers')
-    .select('from')
-    .eq('to', user_id )
+    .select('subscriber')
+    .eq('user_id', record.user_id )
 
   if (subscriberError) throw subscriberError
+  if (subscriberData.length === 0)
+    return response('No Subscribers', null, 200)
 
   /**
    * for each subscriber:
-   * lookup dns txt record of _jwmserver.domain.tld
-   * make POST request to dns result's /api/server/messages
+   * lookup dns txt record of _jwmserver.<domain>.<tld>
+   * make POST request to dns result's /api/server/messages endpoint
    * if successful, remove message from `message_queue`, change message status in `messages` to 'sent'
    * if failed, set `retries`++
    */
-  console.log({data})
-  if (data.length > 0) {
-    for (const sub in data) {
-      const domain = data[sub].from.split('@')[1]
-      try {
-        const resolved = await Deno.resolveDns(`_jwm.${domain}`, "TXT")
-        console.log(resolved[0][0])
-        const server = resolved[0][0]
-          .split(' ')
-          .find(entry => entry.split('=')[0] === 'server')
-        console.log('server is:', server)
+  for (const entry of subscriberData) {
+    console.log('subscriber entry', entry)
+    const domain = entry.subscriber.split('@')[1]
+    try {
+      const resolved = await Deno.resolveDns(`_jwm.${domain}`, "TXT")
+      console.log(resolved)
 
-        if (!server) {
-          return response(null, 'No server found in TXT record', 400)
-        }
+      /* find and grab `server` attribute value. ex, server=10.0.0.1 or server=jwm.example.com */
+      const server = resolved[0][0]
+        .split(' ')
+        .find(entry => entry.split('=')[0] === 'server')
 
-        const server_message = {
-          created_at: Date.now(),
-          to: data[sub].from,
-          from: record.from,
-          message: { 
-            payload: JSON.parse(record.message).payload,
-            signatures: JSON.parse(record.message).signatures,
-            created_at: record.created_at,
-            public_key: record.public_key
-          }
-        }
-        /*  try sending message to server */
-        const target = server.split('=')[1]
-        try {
-          const delivered = await fetch(
-            `https://${target}/api/v0/server/messages`,
-            {
-              method: 'POST',
-              body: JSON.stringify(server_message)
-            })
-          console.log('delivered', delivered)
-        } catch (error) {
-          console.log('error delivering message', error)
-        }
-      } catch (error) {
-          console.log(error)
+      if (!server) {
+        console.log(`No server attribute found in TXT record ${resolved}`)
       }
-      //console.log('sending message to', data[sub])
+
+      const server_message = {
+        created_at: Date.now(),
+        to: entry.subscriber,
+        from: record.from,
+        message: { 
+          payload: JSON.parse(record.message).payload,
+          signatures: JSON.parse(record.message).signatures,
+          created_at: record.created_at,
+          public_key: record.public_key
+        }
+      }
+
+      /*  try sending message to server */
+      const target = server?.split('=')[1]
+      try {
+        console.log('sending message to', entry.subscriber)
+        await fetch(
+          `https://${target}/api/v0/server/messages`,
+          {
+            method: 'POST',
+            body: JSON.stringify(server_message)
+          }
+        )
+      } catch (error) {
+        console.log('error delivering message', error)
+      }
+    } catch (error) {
+        console.log(error)
     }
   }
   
