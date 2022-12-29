@@ -32,7 +32,7 @@ export const GET = async (event: RequestEvent) => {
 }
 
 export const POST = async (event: RequestEvent): Promise<any> => { 
-  let status
+  let status, retries = 0
   const { valid, error, payload } = await validate_client_message(event)
 
   !valid ? status = 'rejected' : status = 'accepted'
@@ -71,7 +71,11 @@ export const POST = async (event: RequestEvent): Promise<any> => {
         }
       ])
 
-    if (queueError) log(queueError)
+    if (queueError) {
+      log(queueError)
+      retries++
+      /* set a timer to try again */
+    }
 
     // const message_data = {
     //   /* eventually grab user.user_metadata.username for 'from'? */
