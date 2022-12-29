@@ -41,6 +41,9 @@ export const POST = async (event: RequestEvent): Promise<any> => {
   if (valid === null) return json({ data: { status }, error }, { status: 400 })
 
   if(!error) {
+    console.log('received client message!', payload)
+
+    /* grab access_token from cookie, so we can verify it was one of our clients who sent the message */
     const access_token = event.cookies.get('access_token') || ''
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(access_token)
 
@@ -53,12 +56,11 @@ export const POST = async (event: RequestEvent): Promise<any> => {
         { message: payload.message, user_id: userData.user.id }
       ])
       .select()
-    console.log(messageData)
 
     if (messageError) return json({ data: null, error: messageError })
 
     /* send to db queue table, for processing */
-    /* eventually grab user.user_metadata.username for 'from'? */
+    /* ?? eventually grab user.user_metadata.username for 'from' ?? */
     const { error: queueError } = await supabaseAdminClient
       .from('messages_queue')
       .insert([
@@ -74,7 +76,7 @@ export const POST = async (event: RequestEvent): Promise<any> => {
     if (queueError) {
       log(queueError)
       retries++
-      /* set a timer to try again */
+      /* set a timer to retry */
     }
 
     // const message_data = {
