@@ -8,7 +8,7 @@ export const POST = async (event: RequestEvent) => {
   message.valid ? status = 'accepted' : status = 'rejected'
   log(message)
   /* couldn't parse body as json */
-  if (!message.valid === null) return message.error
+  if (!message.valid === null) return json({ data: null, error: message.error })
   
   const error = Object.entries(message.error).length > 0 ? message.error.errors : null
   if (error) log(error)
