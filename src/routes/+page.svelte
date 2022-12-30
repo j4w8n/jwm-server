@@ -32,7 +32,7 @@
   }
   
   const sign_message = async () => {
-    const { publicKey, privateKey } = await jose.generateKeyPair('ES256')
+    const { publicKey, privateKey } = await jose.generateKeyPair('ES512')
     let json: Message = {
       "body": {
         "title": title.value,
@@ -40,20 +40,22 @@
         "created_at": Date.now()
       }
     }
-    const plainKey = await jose.exportSPKI(publicKey)
-
-    /* use this on remote end, to recreate publicKey, in order to verify signature */
-    //const publicKey = await jose.importSPKI(plainKey, 'ES256', { extractable: true })
 
     const jws = await new jose.GeneralSign(new TextEncoder().encode(JSON.stringify(json)))
       .addSignature(privateKey)
-      .setProtectedHeader({ typ: 'JWM', alg: 'ES256' })
+      .setProtectedHeader({ typ: 'JWM', alg: 'ES512' })
       .sign()
 
+    /* extract key as string, for JSON use */ 
+    const plainKey = await jose.exportSPKI(publicKey)
+    
     const message_data = {
       message: jws,
-      public_key: plainKey
+      public_key: plainKey,
+      alg: 'ES512'
     }
+    /* use this on remote end, to recreate publicKey, in order to verify signature */
+    //const publicKey = await jose.importSPKI(message_data.public_key, message_data.alg, { extractable: true })
 
     /* send jws to your server */
     if (jws) {
@@ -87,25 +89,28 @@
     //server_message(jws, "me@me.com", "you@you.com")
   }
 
-  const server_message = async(client_jws: any, from: string, to: string) => {
-    const { publicKey, privateKey } = await jose.generateKeyPair('ES256')
-    const message = {
-      client_jws,
-      from,
-      to
-    }
-    const jws = await new jose.GeneralSign(new TextEncoder().encode(JSON.stringify(message)))
-      .addSignature(privateKey)
-      .setProtectedHeader({ typ: 'JWM', alg: 'ES256' })
-      .sign()
+  //const server_message = async(client_jws?: any, from?: string, to?: string) => {
+    //const { publicKey, privateKey } = await jose.generateKeyPair('ES512', { extractable: true})
 
-    log({jws})
+    //console.log(await jose.exportSPKI(publicKey))
+    //console.log(await jose.exportPKCS8(privateKey))
+    // const message = {
+    //   client_jws,
+    //   from,
+    //   to
+    // }
+    // const jws = await new jose.GeneralSign(new TextEncoder().encode(JSON.stringify(message)))
+    //   .addSignature(privateKey)
+    //   .setProtectedHeader({ typ: 'JWM', alg: 'ES512' })
+    //   .sign()
 
-    const { payload, protectedHeader } = await jose.generalVerify(jws, publicKey)
-    const decrypted = new TextDecoder().decode(payload)
+    // log({jws})
 
-    log({'server decrypted': JSON.parse(decrypted), protectedHeader})
-  }
+    // const { payload, protectedHeader } = await jose.generalVerify(jws, publicKey)
+    // const decrypted = new TextDecoder().decode(payload)
+
+    // log({'server decrypted': JSON.parse(decrypted), protectedHeader})
+  //}
 
   const encrypt_message = async () => {
     const { publicKey, privateKey } = await jose.generateKeyPair('ECDH-ES+A256KW')
@@ -137,7 +142,7 @@
 <h1>Create Message</h1>
 <input type="text" bind:this="{title}"/>
 <br>
-<textarea cols='50' rows='25' bind:this="{payload}" type="text"></textarea>
+<textarea cols='50' rows='25' bind:this="{payload}"></textarea>
 <button on:click="{() => { sign_message() }}">Sign</button>
 <button on:click="{() => { encrypt_message() }}">Encrypt</button>
 <iframe style="border: solid 1px darkgrey;" title="sandbox" sandbox="allow-popups allow-popups-to-escape-sandbox" srcdoc={message}></iframe>

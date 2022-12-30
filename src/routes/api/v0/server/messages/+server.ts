@@ -3,6 +3,10 @@ import { validate_server_message, log } from '$lib/utils'
 import type { RequestEvent } from './$types'
 
 export const POST = async (event: RequestEvent) => { 
+  /**
+   * SHOULD WE JUST HAVE AN EDGE FUNCTION HANDLE INCOMING MESSAGES?
+   * and if so, would it be best to just send API requests directly there?
+   */
   let status
   const message = await validate_server_message(event)
   message.valid ? status = 'accepted' : status = 'rejected'
@@ -12,12 +16,17 @@ export const POST = async (event: RequestEvent) => {
   
   const error = Object.entries(message.error).length > 0 ? message.error.errors : null
   if (error) log(error)
+
+  console.log('received server message!', message)
   
-  /* ?? verify this message is from a legit server ?? */
+  /* grab dns txt record for 'from' domain, extract key value, then verify message signature */
   
 
-  /* lookup user by auth token, to ensure they are one of our users and pass username to server_message function */
-  console.log('received server message!', message)
+  /* verify the 'to' user is a valid user */
+
+
+  /* save message to db */
+  
 
   return json({ data: { status }, error })
 }
