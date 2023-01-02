@@ -33,7 +33,7 @@ export const POST = async (event: RequestEvent) => {
       if (!key) {
         throw `No key attribute found in TXT record ${addresses}, for message ${message.data!.domain}`
       }
-      const usable_key = `-----BEGIN PUBLIC KEY-----${key.substring(4)}-----END PUBLIC KEY-----`
+      const usable_key = key.substring(4)
       const public_key = await jose.importSPKI(usable_key, message.data!.alg)
       const { payload } = await jose.generalVerify(message.data!.message, public_key)
       const verified_message = JSON.parse(new TextDecoder().decode(payload))
