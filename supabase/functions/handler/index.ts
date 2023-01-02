@@ -1,4 +1,7 @@
 import { serve } from 'https://deno.land/std@0.131.0/http/server.ts'
+import { crypto } from 'https://deno.land/std@0.167.0/crypto/mod.ts'
+import { decode64ToString } from 'https://deno.land/x/base64to@v0.0.2/mod.ts'
+import * as jose from 'https://deno.land/x/jose@v4.11.2/index.ts'
 import { supabaseAdminClient } from '../_shared/supabaseAdminClient.ts'
 import { validateJson, response } from '../_shared/utils.ts'
 import { JsonResponse, MessageSchema } from '../_shared/types.ts'
@@ -90,7 +93,7 @@ serve(async (req: Request): Promise<Response> => {
       const server = resolved[0][0]
         .split(' ')
         .find(entry => entry.split('=')[0] === 'server')
-
+      console.log('server', server)
       if (!server) {
         throw `No server attribute found in TXT record ${resolved}, for message ${record.message_id}`
       }
@@ -107,6 +110,16 @@ serve(async (req: Request): Promise<Response> => {
         }
       }
 
+      const env_key = Deno.env.get('SIGNATURE_PRIVATE_KEY')
+      if (!env_key) throw 'Cannot find private key'
+
+      const private_key = await jose.importPKCS8(env_key, 'ES256')
+      const signed_message = await new jose.GeneralSign(new TextEncoder().encode(JSON.stringify(server_message)))
+        .addSignature(private_key)
+        .setProtectedHeader({ typ: 'JWM', alg: 'ES256' })
+        .sign()
+      console.log('signed message', signed_message)
+
       /*  try sending message to server */
       const target = server?.split('=')[1]
       try {
@@ -114,7 +127,7 @@ serve(async (req: Request): Promise<Response> => {
         const delivered = await fetch(
           `https://${target}/api/v0/server/messages`, {
             method: 'POST',
-            body: JSON.stringify(server_message)
+            body: JSON.stringify(signed_message)
           }
         )
         const res = await delivered.json()

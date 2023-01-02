@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit'
 import { validate_client_message, log } from '$lib/utils'
 import type { RequestEvent } from './$types'
 import { createClient } from '@supabase/supabase-js'
-import { SUPABASE_ADMIN_KEY, SIGNATURE_PRIVATE_KEY } from '$env/static/private'
+import { SUPABASE_ADMIN_KEY } from '$env/static/private'
 import { PUBLIC_SUPABASE_URL } from '$env/static/public'
 import { supabaseClient } from '$lib/db'
 

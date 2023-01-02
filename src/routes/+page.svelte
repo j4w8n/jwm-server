@@ -30,9 +30,17 @@
       credentials: 'include'
     })
   }
+
+  const gen = async () => {
+    const { publicKey, privateKey } = await jose.generateKeyPair('ES256', { extractable: true })
+    const plainprivate = await jose.exportPKCS8(privateKey)
+    const plainpublic = await jose.exportSPKI(publicKey)
+    console.log(plainpublic)
+    console.log(plainprivate)
+  }
   
   const sign_message = async () => {
-    const { publicKey, privateKey } = await jose.generateKeyPair('ES512')
+    const { publicKey, privateKey } = await jose.generateKeyPair('ES256')
     let json: Message = {
       "body": {
         "title": title.value,
@@ -43,16 +51,16 @@
 
     const jws = await new jose.GeneralSign(new TextEncoder().encode(JSON.stringify(json)))
       .addSignature(privateKey)
-      .setProtectedHeader({ typ: 'JWM', alg: 'ES512' })
+      .setProtectedHeader({ typ: 'JWM', alg: 'ES256' })
       .sign()
 
-    /* extract key as string, for JSON use */ 
+    /* extract key as string, for JSON transport */ 
     const plainKey = await jose.exportSPKI(publicKey)
     
     const message_data = {
       message: jws,
       public_key: plainKey,
-      alg: 'ES512'
+      alg: 'ES256'
     }
     /* use this on remote end, to recreate publicKey, in order to verify signature */
     //const publicKey = await jose.importSPKI(message_data.public_key, message_data.alg, { extractable: true })
@@ -139,6 +147,7 @@
 <button on:click="{() => { signIn('jcrev@pm.me') }}">Sign-In jcrev</button>
 <button on:click="{() => { signOut() }}">Sign-Out</button>
 <button on:click="{() => { messages() }}">Get Messages</button>
+<button on:click="{() => { gen() }}">Create Keys</button>
 <h1>Create Message</h1>
 <input type="text" bind:this="{title}"/>
 <br>

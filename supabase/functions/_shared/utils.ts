@@ -1,4 +1,3 @@
-//import type { Message } from './types.ts'
 import type { ZodError } from 'https://deno.land/x/zod@v3.20.2/mod.ts'
 import { JsonResponse } from './types.ts'
 
