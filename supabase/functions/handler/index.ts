@@ -1,14 +1,13 @@
 import { serve } from 'https://deno.land/std@0.131.0/http/server.ts'
-import { crypto } from 'https://deno.land/std@0.167.0/crypto/mod.ts'
-import { decode64ToString } from 'https://deno.land/x/base64to@v0.0.2/mod.ts'
 import * as jose from 'https://deno.land/x/jose@v4.11.2/index.ts'
 import { supabaseAdminClient } from '../_shared/supabaseAdminClient.ts'
 import { validateJson, response } from '../_shared/utils.ts'
 import { JsonResponse, MessageSchema } from '../_shared/types.ts'
+import { ALG } from '../_shared/constants.ts'
 
 serve(async (req: Request): Promise<Response> => {
   /* This function requires the service-role key */
-  const key: string = req.headers.get('Authorization')?.split(' ')[1] || ''
+  const key = req.headers.get('Authorization')?.split(' ')[1] || ''
   if (key !== Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) 
     return response('Not Authorized', null, 401)
 
@@ -20,13 +19,13 @@ serve(async (req: Request): Promise<Response> => {
     case "SUCCESS":
       break
     case "ERROR":
-      return response(null, message.error, 400)
+      throw message.error
   }
 
   const validMessage = MessageSchema.safeParse(message)
   if (!validMessage.success) {
     console.log(validMessage.error)
-    return response(null, validMessage.error, 400)
+    throw validMessage.error
   }
 
   /* message is valid, grab newly inserted db data */
@@ -40,7 +39,7 @@ serve(async (req: Request): Promise<Response> => {
 
   if (lockedError) {
     console.log('Error while trying to set message status to `locked`', lockedError)
-    return response('Could not set message status to `locked`', lockedError, 500)
+    throw lockedError
   }
 
   /* lookup the sender's subscribers */
@@ -51,22 +50,23 @@ serve(async (req: Request): Promise<Response> => {
 
   if (subscriberError) {
     console.log('Error while trying to fetch subscribers', subscriberError)
-    /* set message status to `queued` */
+    /* set message status back to `queued`, so it can be processed later */
     const { error: queuedError } = await supabaseAdminClient
       .from('messages_queue')
       .update({ status: 'queued' })
       .eq('id', record.id)
 
     if (queuedError) {
-      /* set timer to retry */
+      console.log('Error while trying to set message status back to `queued`', queuedError)
+      /* ??set timer to retry?? */
     }
-    return response('Could not get subscribers for message', subscriberError, 500)
+    throw subscriberError
   }
   if (subscriberData.length === 0) {
-    /* set message status to `processed` */
+    /* no subscribers. set message status to `processed`, since it will never be `sent` */
     const { error: processedError } = await supabaseAdminClient
       .from('messages_queue')
-      .update({ status: 'locked' })
+      .update({ status: 'processed' })
       .eq('id', record.id)
 
     if (processedError) {
@@ -99,26 +99,26 @@ serve(async (req: Request): Promise<Response> => {
       }
 
       const server_message = {
-        created_at: Date.now(),
+        created_at: record.created_at,
         to: entry.subscriber,
         from: record.from,
-        message: { 
-          payload: JSON.parse(record.message).payload,
-          signatures: JSON.parse(record.message).signatures,
-          created_at: record.created_at,
-          public_key: record.public_key
-        }
+        message: record.message
       }
 
       const env_key = Deno.env.get('SIGNATURE_PRIVATE_KEY')
       if (!env_key) throw 'Cannot find private key'
 
-      const private_key = await jose.importPKCS8(env_key, 'ES256')
-      const signed_message = await new jose.GeneralSign(new TextEncoder().encode(JSON.stringify(server_message)))
+      const private_key = await jose.importPKCS8(env_key, ALG)
+      const jws = await new jose.GeneralSign(new TextEncoder().encode(JSON.stringify(server_message)))
         .addSignature(private_key)
-        .setProtectedHeader({ typ: 'JWM', alg: 'ES256' })
+        .setProtectedHeader({ typ: 'JWM', alg: ALG })
         .sign()
-      console.log('signed message', signed_message)
+      console.log('signed message', jws)
+
+      const message_data = {
+        message: jws,
+        alg: ALG
+      }
 
       /*  try sending message to server */
       const target = server?.split('=')[1]
@@ -127,7 +127,7 @@ serve(async (req: Request): Promise<Response> => {
         const delivered = await fetch(
           `https://${target}/api/v0/server/messages`, {
             method: 'POST',
-            body: JSON.stringify(signed_message)
+            body: JSON.stringify(message_data)
           }
         )
         const res = await delivered.json()

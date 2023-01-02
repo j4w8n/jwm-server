@@ -11,7 +11,6 @@ export const MessageSchema = z.object({
     created_at: z.string(),
     message_id: z.number(),
     user_id: z.string(),
-    public_key: z.string(),
   }),
   schema: z.literal("public"),
   old_record: z.null(),

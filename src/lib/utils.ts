@@ -1,102 +1,58 @@
-import Validator from 'validatorjs'
 import * as jose from 'jose'
-import { json } from '@sveltejs/kit'
+import type { ZodError } from 'zod'
 import type { RequestEvent } from '@sveltejs/kit'
 import { InvalidJson, BodyNull } from '$lib/responses'
+import { ServerMessageSchema, ClientMessageSchema, type ClientMessage, type ServerMessage } from '$lib/types'
 
 export const log = (data: object | string) => {
   console.log(JSON.stringify(data, null, 2))
 }
 
-export function decodeBase64(input: string) {
-  const keyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/="
-  let output = '';
-  let chr1, chr2, chr3;
-  let enc1, enc2, enc3, enc4;
-  let i = 0;
-  
-  while (i < input.length) {
-    enc1 = keyStr.indexOf(input.charAt(i++));
-    enc2 = keyStr.indexOf(input.charAt(i++));
-    enc3 = keyStr.indexOf(input.charAt(i++));
-    enc4 = keyStr.indexOf(input.charAt(i++));
-    chr1 = (enc1 << 2) | (enc2 >> 4);
-    chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
-    chr3 = ((enc3 & 3) << 6) | enc4;
-    output = output + String.fromCharCode(chr1);
-    if (enc3 != 64) {
-      output = output + String.fromCharCode(chr2);
-    }
-    if (enc4 != 64) {
-      output = output + String.fromCharCode(chr3);
-    }
-  }
-
-  output = decodeURIComponent(output);
-  return JSON.parse(output);
-}
-
 /* incoming, from a client */
-export const validate_client_message = async (event: RequestEvent): Promise<{valid: boolean | null, error: any, payload: any}> => {
+export const validate_client_message = async (event: RequestEvent): Promise<{data: ClientMessage | null, valid: boolean, error: ZodError | null}> => {
   const json = await validate_json(event)
 
   if (json.valid === null) return json
 
-  // const format = {
-  //   payload: 'required|string',
-  //   signatures: 'required|array'
-  // }
-  const format = {
-    message: {
-      payload: 'required|string',
-      signatures: 'required|array'
-    },
-    public_key: 'required|string'
-  }
+  const validClientMessage = ClientMessageSchema.safeParse(json)
 
-  const message = new Validator(json, format)
-
-  /* negates possible 'void' return type from passes() */
-  const passes = message.passes() ? true : false
-  const error = Object.entries(message.errors.errors).length === 0 ? null : message.errors.errors
-  
-  return {
-    valid: passes,
-    error,
-    payload: json
+  switch (validClientMessage.success) {
+    case true:
+      return {
+        data: validClientMessage.data,
+        valid: true,
+        error: null
+      }
+    case false:
+      return {
+        data: null,
+        valid: false,
+        error: validClientMessage.error
+      }
   }
 }
 
 /* incoming, from another server */
-export const validate_server_message = async (event: RequestEvent): Promise<{message: JSON, valid: boolean | null, error: any}> => {
+export const validate_server_message = async (event: RequestEvent): Promise<{data: ServerMessage | null, valid: boolean, error: ZodError | null}> => {
   const json = await validate_json(event)
 
   if (json.valid === null) return json
 
-  const format = {
-    created_at: 'required|date',
-    from: 'required|email',
-    to: 'required|email',
-    message: {
-        payload: 'required|string',
-        signatures: 'required|array',
-        created_at: 'required|string',
-        public_key: 'required|string'
-    }
-  }
-  const errors = {
-    'email.from': 'Expecting user@domain.tld format.',
-    'email.to': 'Expecting user@domain.tld format.'
-  }
-  const message = new Validator(json, format, errors)
+  const validServerMessage = ServerMessageSchema.safeParse(json)
 
-  /* negates possible 'void' return type from passes() */
-  const passes = message.passes() ? true : false
-
-  return {
-    message: json,
-    valid: passes,
-    error: message.errors.errors
+  switch (validServerMessage.success) {
+    case true:
+      return {
+        data: validServerMessage.data,
+        valid: true,
+        error: null
+      }
+    case false:
+      return {
+        data: null,
+        valid: false,
+        error: validServerMessage.error
+      }
   }
 }
 

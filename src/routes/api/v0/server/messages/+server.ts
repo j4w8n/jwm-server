@@ -14,7 +14,7 @@ export const POST = async (event: RequestEvent) => {
   /* couldn't parse body as json */
   if (!message.valid === null) return json({ data: null, error: message.error })
   
-  const error = Object.entries(message.error).length > 0 ? message.error.errors : null
+  const error = message.error
   if (error) log(error)
 
   console.log('received server message!', message)
