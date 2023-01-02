@@ -1,12 +1,8 @@
 import { json } from '@sveltejs/kit'
 import { validate_client_message, log } from '$lib/utils'
 import type { RequestEvent } from './$types'
-import { createClient } from '@supabase/supabase-js'
-import { SUPABASE_ADMIN_KEY } from '$env/static/private'
-import { PUBLIC_SUPABASE_URL } from '$env/static/public'
-import { supabaseClient } from '$lib/db'
-
-const supabaseAdminClient = createClient(PUBLIC_SUPABASE_URL, SUPABASE_ADMIN_KEY)
+import { supabaseClient } from '$lib/supabaseClient'
+import { supabaseAdminClient } from '$lib/supabaseAdminClient'
 
 export const GET = async (event: RequestEvent) => {
   let messages = null

@@ -1,7 +1,7 @@
 <script lang="ts">
   import * as jose from 'jose'
   import type { Message } from '$lib/types'
-  import { supabaseClient } from '$lib/db'
+  import { supabaseClient } from '$lib/supabaseClient'
   import { log } from '$lib/utils'
 
   let message: string = '', payload: HTMLTextAreaElement, title: HTMLInputElement, token: string = ''

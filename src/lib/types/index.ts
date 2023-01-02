@@ -30,6 +30,7 @@ export const ServerMessageSchema = z.object({
     signatures: z.array(SignaturesSchema),
   }),
   alg: z.string(),
+  domain: z.string(),
 })
 
 export type ServerMessage = z.infer<typeof ServerMessageSchema>

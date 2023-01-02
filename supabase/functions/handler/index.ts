@@ -3,7 +3,7 @@ import * as jose from 'https://deno.land/x/jose@v4.11.2/index.ts'
 import { supabaseAdminClient } from '../_shared/supabaseAdminClient.ts'
 import { validateJson, response } from '../_shared/utils.ts'
 import { JsonResponse, MessageSchema } from '../_shared/types.ts'
-import { ALG } from '../_shared/constants.ts'
+import { ALG, DOMAIN } from '../_shared/constants.ts'
 
 serve(async (req: Request): Promise<Response> => {
   /* This function requires the service-role key */
@@ -117,6 +117,7 @@ serve(async (req: Request): Promise<Response> => {
 
       const message_data = {
         message: jws,
+        domain: domain,
         alg: ALG
       }
 
