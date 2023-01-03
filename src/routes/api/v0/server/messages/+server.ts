@@ -16,20 +16,20 @@ export const POST = async (event: RequestEvent) => {
    * and if so, would it be best to just send API requests directly there?
    */
   let status
-  const message = await validate_server_message(event)
-  message.valid ? status = 'accepted' : status = 'rejected'
+  const { data, error, valid } = await validate_server_message(event)
+  valid ? status = 'accepted' : status = 'rejected'
 
   /* couldn't parse body as json */
-  if (message.valid === null) return json({ data: null, error: message.error })
+  if (valid === null) return json({ data: null, error: error })
   
-  if (message.error) return json({ data: { status }, error: message.error })
+  if (error) return json({ data: { status }, error: error })
 
-  console.log('received server message!', message)
+  console.log('received server message!', data)
   
   /* grab dns txt record for sending-server domain, extract key value, then verify message signature */
   try {
     //TODO 1
-    dns.resolveTxt(`_jwm.${message.data!.domain}`, async (err, addresses) => { 
+    dns.resolveTxt(`_jwm.${data!.domain}`, async (err, addresses) => { 
       if (err) throw err
 
       const key = addresses[0][0]
@@ -38,17 +38,17 @@ export const POST = async (event: RequestEvent) => {
 
       if (!key) {
         //TODO 1
-        throw `No key attribute found in TXT record ${addresses}, for message ${message.data!.domain}`
+        throw `No key attribute found in TXT record ${addresses}, for message ${data!.domain}`
       }
 
       /* get TXT `key` value and create a proper key for verification */
       const txt_record_key = key.substring(4)
       //TODO 1
-      const public_key = await jose.importSPKI(txt_record_key, message.data!.alg)
+      const public_key = await jose.importSPKI(txt_record_key, data!.alg)
 
       /* verify and decode message */
       //TODO 1
-      const { payload } = await jose.generalVerify(message.data!.message, public_key)
+      const { payload } = await jose.generalVerify(data!.message, public_key)
       const verified_message = JSON.parse(new TextDecoder().decode(payload))
       console.log('verified message is', verified_message)
 
