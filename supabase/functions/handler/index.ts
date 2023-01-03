@@ -3,7 +3,7 @@ import * as jose from 'https://deno.land/x/jose@v4.11.2/index.ts'
 import { supabaseAdminClient } from '../_shared/supabaseAdminClient.ts'
 import { validateJson, response } from '../_shared/utils.ts'
 import { JsonResponse, RecordSchema } from '../_shared/types.ts'
-import { ALG } from '../_shared/constants.ts'
+import { ALG, DOMAIN } from '../_shared/constants.ts'
 
 serve(async (req: Request): Promise<Response> => {
   /* This function requires the service-role key */
@@ -70,6 +70,7 @@ serve(async (req: Request): Promise<Response> => {
       .eq('id', record.id)
 
     if (processedError) {
+      throw `Failed to set message status to 'processed' ${processedError}`
       /* set timer to retry */
     }
     return response('No Subscribers', null, 200)
@@ -77,8 +78,8 @@ serve(async (req: Request): Promise<Response> => {
 
   /**
    * for each subscriber:
-   * lookup dns txt record of _jwmserver.<domain>.<tld>
-   * make POST request to dns result's /api/server/messages endpoint
+   * lookup dns txt record of _jwm.<domain>.<tld>, to grab the `server` value
+   * make POST request to receiving server's /api/server/messages endpoint
    * if successful, remove message from `message_queue`, change message status in `messages` to 'sent'
    * if failed, set `retries`++
    */
@@ -93,11 +94,11 @@ serve(async (req: Request): Promise<Response> => {
       const server = resolved[0][0]
         .split(' ')
         .find(entry => entry.split('=')[0] === 'server')
-      console.log('server', server)
       if (!server) {
         throw `No server attribute found in TXT record ${resolved}, for message ${record.message_id}`
       }
 
+      /* create server-to-server message */
       const server_message = {
         created_at: record.created_at,
         to: entry.subscriber,
@@ -115,16 +116,28 @@ serve(async (req: Request): Promise<Response> => {
         .sign()
       console.log('signed message', jws)
 
+      /**
+       * Sign message, with metadata.
+       * DOMAIN should be this server's domain. Receiving server will use this value to get
+       * the public key from the _jwm DNS TXT record.
+       * ALG should match the alg used to sign the message. This is so the receiving server
+       * can take the sending server's public key (from TXT record) and create a full key used
+       * to verify the signed message and decode the contents.
+       */
       const message_data = {
         message: jws,
-        domain: domain,
+        domain: DOMAIN,
         alg: ALG
       }
 
-      /*  try sending message to server */
       const target = server?.split('=')[1]
+      /*  try sending message to server */
       try {
         console.log('sending message to', entry.subscriber)
+        /**
+         * Eventually, url should not have the version number.
+         * Receiving server should use a redirect or proxy to reach a versioned endpoint.
+         */
         const delivered = await fetch(
           `https://${target}/api/v0/server/messages`, {
             method: 'POST',
@@ -141,12 +154,18 @@ serve(async (req: Request): Promise<Response> => {
     }
   }
 
+  /** 
+   * Outgoing message will be seen as one message to sender,
+   * so we only take these two actions once.
+   */
+
   /* set message status to `sent` */
-  const { error: sentError } = await supabaseAdminClient
+  const { error: statusError } = await supabaseAdminClient
     .from('messages')
     .update({ status: 'sent' })
     .eq('id', record.message_id)
-  if (sentError) {
+  if (statusError) {
+    throw statusError
     /* set timer to retry */
   }
   
@@ -156,6 +175,7 @@ serve(async (req: Request): Promise<Response> => {
     .delete()
     .eq('id', record.id)
   if (deleteError) {
+    throw deleteError
     /* set timer to retry */
   }
 
