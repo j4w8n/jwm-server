@@ -15,7 +15,7 @@ export const POST = async (event: RequestEvent) => {
   message.valid ? status = 'accepted' : status = 'rejected'
 
   /* couldn't parse body as json */
-  if (!message.valid === null) return json({ data: null, error: message.error })
+  if (message.valid === null) return json({ data: null, error: message.error })
   
   if (message.error) return json({ data: { status }, error: message.error })
 
@@ -33,31 +33,40 @@ export const POST = async (event: RequestEvent) => {
       if (!key) {
         throw `No key attribute found in TXT record ${addresses}, for message ${message.data!.domain}`
       }
-      const usable_key = key.substring(4)
-      const public_key = await jose.importSPKI(usable_key, message.data!.alg)
+
+      /* get TXT `key` value and create a proper key for verification */
+      const txt_record_key = key.substring(4)
+      const public_key = await jose.importSPKI(txt_record_key, message.data!.alg)
+
+      /* verify and decode message */
       const { payload } = await jose.generalVerify(message.data!.message, public_key)
       const verified_message = JSON.parse(new TextDecoder().decode(payload))
-      console.log(verified_message)
-      /* verify the 'to' user is a valid user */
-      const { data: userData, error: userError } = await supabaseAdminClient.rpc('find_user', { email_input: verified_message.to })
-      
-      if (userError) throw userError
+      console.log('verified message is', verified_message)
 
-      /* save incoming message to db */
-      if (userData.length > 0) {
-        const { error: addedError } = await supabaseAdminClient
-          .from('messages')
-          .insert([
-            { message: verified_message, user_id: userData[0].user_id, status: 'received' }
-          ])
-          .select()
+      /* ensure the 'to' user is a valid user for this server */
+      /* should we validate the decoded message first? this would negate the need for an `if` here */
+      if (verified_message.to) {
+        const { data: userData, error: userError } = await supabaseAdminClient.rpc('find_user', { email_input: verified_message.to })
+        if (userError) throw userError
 
-        if (addedError) throw addedError
+        /* save incoming message to db */
+        if (userData.length > 0) {
+          const { error: addedError } = await supabaseAdminClient
+            .from('messages')
+            .insert([
+              { message: verified_message, user_id: userData[0].user_id, status: 'received' }
+            ])
+            .select()
+
+          if (addedError) throw addedError
+        }
+      } else {
+        throw `Message does not contain a 'to' field.`
       }
-
     })
   } catch (error) {
     console.log(error)
+    return json({ data: null, error })
   }
 
   return json({ data: { status }, error: null })

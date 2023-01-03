@@ -71,7 +71,6 @@ export const POST = async (event: RequestEvent): Promise<any> => {
 
   if (queueError) return json({ data: null, error: queueError }, { status: 500 })
 
-  log('check browser console for response')
   /* should we send more information back about what we accepted? */
   return json({ data: { status }, error: null })
 }
