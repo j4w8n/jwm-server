@@ -12,7 +12,7 @@ import { supabaseAdminClient } from '$lib/supabaseAdminClient'
 
 export const POST = async (event: RequestEvent) => { 
   /**
-   * SHOULD WE JUST HAVE AN EDGE FUNCTION HANDLE INCOMING MESSAGES?
+   * ? SHOULD WE JUST HAVE AN EDGE FUNCTION HANDLE INCOMING MESSAGES?
    * and if so, would it be best to just send API requests directly there?
    */
   let status
@@ -53,7 +53,9 @@ export const POST = async (event: RequestEvent) => {
       console.log('verified message is', verified_message)
 
       /* ensure the 'to' user is a valid user for this server */
-      /* should we validate the decoded message first? this would negate the need for an `if` here */
+      /**
+       * ? should we validate the decoded message first? this would negate the need for an `if` here 
+       */
       if (verified_message.to) {
         const { data: userData, error: userError } = await supabaseAdminClient
           .rpc('find_user', { email_input: verified_message.to })

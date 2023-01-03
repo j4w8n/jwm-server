@@ -31,7 +31,7 @@ export const POST = async (event: RequestEvent): Promise<any> => {
   let status
   const { valid, error, data } = await validate_client_message(event)
 
-  !valid ? status = 'rejected' : status = 'accepted'
+  valid ? status = 'accepted' : status = 'rejected'
 
   /* couldn't parse body as json */
   if (valid === null) return json({ data: { status }, error }, { status: 400 })
