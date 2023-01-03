@@ -5,6 +5,11 @@ import type { RequestEvent } from './$types'
 import * as jose from 'jose'
 import { supabaseAdminClient } from '$lib/supabaseAdminClient'
 
+/**
+ * TODO: 
+ * 1. resolve the trailing !. I assume by narrowing the type?
+ */
+
 export const POST = async (event: RequestEvent) => { 
   /**
    * SHOULD WE JUST HAVE AN EDGE FUNCTION HANDLE INCOMING MESSAGES?
@@ -23,7 +28,8 @@ export const POST = async (event: RequestEvent) => {
   
   /* grab dns txt record for sending-server domain, extract key value, then verify message signature */
   try {
-    dns.resolveTxt(`_jwm.${message.data!.domain}`, async (err, addresses) => {
+    //TODO 1
+    dns.resolveTxt(`_jwm.${message.data!.domain}`, async (err, addresses) => { 
       if (err) throw err
 
       const key = addresses[0][0]
@@ -31,14 +37,17 @@ export const POST = async (event: RequestEvent) => {
         .find((entry: string) => entry.split('=')[0] === 'key')
 
       if (!key) {
+        //TODO 1
         throw `No key attribute found in TXT record ${addresses}, for message ${message.data!.domain}`
       }
 
       /* get TXT `key` value and create a proper key for verification */
       const txt_record_key = key.substring(4)
+      //TODO 1
       const public_key = await jose.importSPKI(txt_record_key, message.data!.alg)
 
       /* verify and decode message */
+      //TODO 1
       const { payload } = await jose.generalVerify(message.data!.message, public_key)
       const verified_message = JSON.parse(new TextDecoder().decode(payload))
       console.log('verified message is', verified_message)
@@ -46,7 +55,8 @@ export const POST = async (event: RequestEvent) => {
       /* ensure the 'to' user is a valid user for this server */
       /* should we validate the decoded message first? this would negate the need for an `if` here */
       if (verified_message.to) {
-        const { data: userData, error: userError } = await supabaseAdminClient.rpc('find_user', { email_input: verified_message.to })
+        const { data: userData, error: userError } = await supabaseAdminClient
+          .rpc('find_user', { email_input: verified_message.to })
         if (userError) throw userError
 
         /* save incoming message to db */
