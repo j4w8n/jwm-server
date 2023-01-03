@@ -62,8 +62,6 @@
       public_key: plainKey,
       alg: 'ES256'
     }
-    /* use this on remote end, to recreate publicKey, in order to verify signature */
-    //const publicKey = await jose.importSPKI(message_data.public_key, message_data.alg, { extractable: true })
 
     /* send jws to your server */
     if (jws) {
@@ -79,7 +77,7 @@
         /* eventually display error in ui */
         //log({'Message': error})
       } else {
-        /* eventuall display success ui */
+        /* eventuall display success in ui */
         //log({'Message': data.status})
       }
     }

@@ -29,7 +29,7 @@ export const GET = async (event: RequestEvent) => {
 
 export const POST = async (event: RequestEvent): Promise<any> => { 
   let status
-  const { valid, error, data } = await validate_client_message(event)
+  const { data, error, valid } = await validate_client_message(event)
 
   valid ? status = 'accepted' : status = 'rejected'
 
@@ -46,7 +46,7 @@ export const POST = async (event: RequestEvent): Promise<any> => {
 
   if (userError) return json({ data: null, error: userError }, { status: 400 })
 
-  /* add message to `messages` and set status to `accepted` with retries set to `0` */
+  /* add message to `messages`. status defaults to `accepted` */
   const { data: messageData, error: messageError } = await supabaseAdminClient
     .from('messages')
     .insert([
