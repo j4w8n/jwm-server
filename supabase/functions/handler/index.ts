@@ -2,8 +2,8 @@ import { serve } from 'https://deno.land/std@0.131.0/http/server.ts'
 import * as jose from 'https://deno.land/x/jose@v4.11.2/index.ts'
 import { supabaseAdminClient } from '../_shared/supabaseAdminClient.ts'
 import { validateJson, response } from '../_shared/utils.ts'
-import { JsonResponse, MessageSchema } from '../_shared/types.ts'
-import { ALG, DOMAIN } from '../_shared/constants.ts'
+import { JsonResponse, RecordSchema } from '../_shared/types.ts'
+import { ALG } from '../_shared/constants.ts'
 
 serve(async (req: Request): Promise<Response> => {
   /* This function requires the service-role key */
@@ -22,7 +22,7 @@ serve(async (req: Request): Promise<Response> => {
       throw message.error
   }
 
-  const validMessage = MessageSchema.safeParse(message)
+  const validMessage = RecordSchema.safeParse(message)
   if (!validMessage.success) {
     console.log(validMessage.error)
     throw validMessage.error
@@ -60,7 +60,7 @@ serve(async (req: Request): Promise<Response> => {
       console.log('Error while trying to set message status back to `queued`', queuedError)
       /* ??set timer to retry?? */
     }
-    throw subscriberError
+    throw `${subscriberError} ${queuedError}`
   }
   if (subscriberData.length === 0) {
     /* no subscribers. set message status to `processed`, since it will never be `sent` */

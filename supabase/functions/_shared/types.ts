@@ -1,6 +1,6 @@
 import { z } from 'https://deno.land/x/zod@v3.20.2/mod.ts'
 
-export const MessageSchema = z.object({
+export const RecordSchema = z.object({
   type: z.string(),
   table: z.string(),
   record: z.object({
@@ -17,7 +17,7 @@ export const MessageSchema = z.object({
   _valid: z.literal("SUCCESS"),
 })
 
-export type Message = z.infer<typeof MessageSchema>
+export type Record = z.infer<typeof RecordSchema>
 
 export type ErrorResponse = {
   error: string
@@ -25,5 +25,5 @@ export type ErrorResponse = {
 }
 
 export type JsonResponse =
-  | Message
+  | Record
   | ErrorResponse
