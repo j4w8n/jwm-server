@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit'
 import { validate_client_message, log } from '$lib/utils'
 import type { RequestEvent } from './$types'
-import { supabaseClient } from '$lib/supabaseClient'
+import { supabaseServerClient } from 'supakit'
 import { supabaseAdminClient } from '$lib/supabaseAdminClient'
 
 export const GET = async (event: RequestEvent) => {
@@ -14,11 +14,11 @@ export const GET = async (event: RequestEvent) => {
       data: null, error: 'No cookie found'
     })
 
-  const { data, error } = await supabaseClient.auth.getUser(access_token)
+  const { data, error } = await supabaseServerClient.auth.getUser(access_token)
   if (error) throw error
   if (data.user) {
-    await supabaseClient.auth.setSession({ access_token, refresh_token })
-    const { data, error } = await supabaseClient.from('messages').select()
+    await supabaseServerClient.auth.setSession({ access_token, refresh_token })
+    const { data, error } = await supabaseServerClient.from('messages').select()
     log({'messages': data, error})
   }
   
@@ -42,7 +42,7 @@ export const POST = async (event: RequestEvent): Promise<any> => {
 
   /* grab access_token from cookie, so we can verify it was one of our clients who sent the message */
   const access_token = event.cookies.get('access_token') || ''
-  const { data: userData, error: userError } = await supabaseClient.auth.getUser(access_token)
+  const { data: userData, error: userError } = await supabaseServerClient.auth.getUser(access_token)
 
   if (userError) return json({ data: null, error: userError }, { status: 400 })
 

@@ -68,59 +68,39 @@ export const validate_json = async ({ request, getClientAddress }: RequestEvent)
 }
 
 /* outgoing, to another server */
-export const create_server_message = async(client_jws: any, from: string, to: string) => {
-  const { publicKey, privateKey } = await jose.generateKeyPair('ES256')
-  const message = {
-    body: client_jws,
-    from,
-    to,
-    created_at: Date.now()
-  }
-  const jws = await new jose.GeneralSign(new TextEncoder().encode(JSON.stringify(message)))
-    .addSignature(privateKey)
-    .setProtectedHeader({ typ: 'JWM', alg: 'ES256' })
-    .sign()
+// export const create_server_message = async(client_jws: any, from: string, to: string) => {
+//   const { publicKey, privateKey } = await jose.generateKeyPair('ES256')
+//   const message = {
+//     body: client_jws,
+//     from,
+//     to,
+//     created_at: Date.now()
+//   }
+//   const jws = await new jose.GeneralSign(new TextEncoder().encode(JSON.stringify(message)))
+//     .addSignature(privateKey)
+//     .setProtectedHeader({ typ: 'JWM', alg: 'ES256' })
+//     .sign()
 
-  console.log({jws})
-
-  /* old code from client-side */
-  // const { payload, protectedHeader } = await jose.generalVerify(jws, publicKey)
-  // const decrypted = new TextDecoder().decode(payload)
-
-  // console.log('server decrypted', JSON.parse(decrypted), protectedHeader)
-}
+//   console.log({jws})
+// }
 
 /* outgoing, to another server */
-export const encrypt_server_message = async (client_jws: any, from: string, to: string) => {
-  /* lookup destination server's publicKey via DNS, instead of generating */
-  const { publicKey, privateKey } = await jose.generateKeyPair('ECDH-ES+A256KW')
+// export const encrypt_server_message = async (client_jws: any, from: string, to: string) => {
+//   /* lookup destination server's publicKey via DNS, instead of generating */
+//   const { publicKey, privateKey } = await jose.generateKeyPair('ECDH-ES+A256KW')
 
-  //const json = JSON.parse(raw_payload.value)
-  //json.created_at = Date.now()
-  const message = {
-    body: client_jws,
-    from,
-    to
-  }
-  const jwe = await new jose.GeneralEncrypt(new TextEncoder().encode(JSON.stringify(message)))
-    .setProtectedHeader({ typ: 'JWM', enc: 'A256GCM' })
-    .setSharedUnprotectedHeader({ alg: 'ECDH-ES+A256KW'})
-    .addRecipient(publicKey)
-    .encrypt()
+//   //const json = JSON.parse(raw_payload.value)
+//   //json.created_at = Date.now()
+//   const message = {
+//     body: client_jws,
+//     from,
+//     to
+//   }
+//   const jwe = await new jose.GeneralEncrypt(new TextEncoder().encode(JSON.stringify(message)))
+//     .setProtectedHeader({ typ: 'JWM', enc: 'A256GCM' })
+//     .setSharedUnprotectedHeader({ alg: 'ECDH-ES+A256KW'})
+//     .addRecipient(publicKey)
+//     .encrypt()
 
-  console.log({jwe})
-
-  /* send the encrypted message to the destination server, per DNS lookup of the domain */
-
-
-
-  /* old code from client-side */
-  /* someone is sending you an encrypted message, using your publicKey. so you decrypt with your privateKey */
-  // const { plaintext, protectedHeader, additionalAuthenticatedData } = await jose.generalDecrypt(jwe, privateKey)
-  // const decrypted = new TextDecoder().decode(plaintext)
-
-  // const body = JSON.parse(decrypted).body
-  // console.log('decrypted', JSON.parse(decrypted), protectedHeader)
-  // message = body.message
-  // title = body.title
-}
+//   console.log({jwe})
+// }

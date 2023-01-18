@@ -1,13 +1,16 @@
 <script lang="ts">
   import * as jose from 'jose'
   import type { Message } from '$lib/types'
-  import { supabaseClient } from '$lib/supabaseClient'
+  import { supabaseBrowserClient } from 'supakit'
   import { log } from '$lib/utils'
+  import { getSession } from 'supakit'
+  
+  const session = getSession()
 
   let message: string = '', payload: HTMLTextAreaElement, title: HTMLInputElement, token: string = ''
   
   const signIn = async (email: string) => {
-    const { data, error} = await supabaseClient.auth.signInWithPassword({
+    const { data, error} = await supabaseBrowserClient.auth.signInWithPassword({
       email,
       password: 'password'
     })
@@ -17,7 +20,7 @@
     log('signed in!')
   }
   const signOut = async () => {
-    const { error } = await supabaseClient.auth.signOut()
+    const { error } = await supabaseBrowserClient.auth.signOut()
     if (error) throw error
     document.cookie = `access_token=''; SameSite=Lax; Path=/; Max-Age=-1`
     document.cookie = `refresh_token=''; SameSite=Lax; Path=/; Max-Age=-1`
@@ -81,42 +84,7 @@
         //log({'Message': data.status})
       }
     }
-
-    /* temp, verify signature & decrypt message */
-    // const { payload, protectedHeader } = await jose.generalVerify(jws, publicKey)
-    // const decrypted = new TextDecoder().decode(payload)
-
-    // const body = JSON.parse(decrypted).body
-    // log({'decrypted': JSON.parse(decrypted), protectedHeader})
-    // message = body.message
-    // title = body.title
-
-    /* from will eventually come from a user lookup with the authorization header, to see what they're username is */
-    //server_message(jws, "me@me.com", "you@you.com")
   }
-
-  //const server_message = async(client_jws?: any, from?: string, to?: string) => {
-    //const { publicKey, privateKey } = await jose.generateKeyPair('ES512', { extractable: true})
-
-    //console.log(await jose.exportSPKI(publicKey))
-    //console.log(await jose.exportPKCS8(privateKey))
-    // const message = {
-    //   client_jws,
-    //   from,
-    //   to
-    // }
-    // const jws = await new jose.GeneralSign(new TextEncoder().encode(JSON.stringify(message)))
-    //   .addSignature(privateKey)
-    //   .setProtectedHeader({ typ: 'JWM', alg: 'ES512' })
-    //   .sign()
-
-    // log({jws})
-
-    // const { payload, protectedHeader } = await jose.generalVerify(jws, publicKey)
-    // const decrypted = new TextDecoder().decode(payload)
-
-    // log({'server decrypted': JSON.parse(decrypted), protectedHeader})
-  //}
 
   const encrypt_message = async () => {
     const { publicKey, privateKey } = await jose.generateKeyPair('ECDH-ES+A256KW')
